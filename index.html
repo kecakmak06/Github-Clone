@@ -542,6 +542,107 @@
       font-weight: 600;
       text-decoration: none;
     }
+
+    /* ===== SETTINGS GEAR ===== */
+    .settings-btn {
+      position: absolute;
+      right: 20px;
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* ===== SETTINGS MODAL ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal-sheet {
+      background: var(--bg2);
+      border-radius: 20px 20px 0 0;
+      padding: 24px 24px 48px;
+      width: 100%;
+      transform: translateY(0);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .modal-overlay.hidden .modal-sheet {
+      transform: translateY(100%);
+    }
+
+    .modal-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 999px;
+      margin: 0 auto 24px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .setting-row {
+      margin-bottom: 20px;
+    }
+
+    .setting-label {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .setting-input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 16px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+    }
+
+    .setting-input:focus { border-color: var(--purple); }
+
+    .modal-save-btn {
+      width: 100%;
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .modal-save-btn:active { opacity: 0.85; }
+
+    .time-hint {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -552,6 +653,7 @@
   <div class="top-bar">
     <span class="back-btn">&#8964;</span>
     <h1>Your order</h1>
+    <span class="settings-btn" onclick="openSettings()">&#9881;</span>
   </div>
 
   <div class="order-number-banner">ORDER #66</div>
@@ -693,7 +795,109 @@
 
 </div>
 
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="modal-overlay hidden" id="settings-modal" onclick="handleOverlayClick(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title">Order Settings</p>
+
+    <div class="setting-row">
+      <p class="setting-label">ORDER NUMBER</p>
+      <input class="setting-input" id="input-order-num" type="number" placeholder="e.g. 66" inputmode="numeric" />
+    </div>
+
+    <div class="setting-row">
+      <p class="setting-label">PICKUP TIME (optional — leave blank for auto)</p>
+      <input class="setting-input" id="input-pickup-time" type="time" />
+      <p class="time-hint">Auto sets pickup to current time + 10 min</p>
+    </div>
+
+    <button class="modal-save-btn" onclick="saveSettings()">Save</button>
+  </div>
+</div>
+
 <script>
+  // State
+  let orderNum = 66;
+  let customPickupTime = null; // null = auto
+
+  function formatPickupStr(date) {
+    const h = date.getHours();
+    const m = date.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = ((h % 12) || 12).toString().padStart(2, '0');
+    return `${h12}:${m}${ampm}`;
+  }
+
+  function formatPickupStr12Lower(date) {
+    const h = date.getHours();
+    const m = date.getMinutes().toString().padStart(2, '0');
+    const ap = h >= 12 ? 'pm' : 'am';
+    const h12 = (h % 12) || 12;
+    return `${h12}:${m} ${ap}`;
+  }
+
+  function applyOrderNum(num) {
+    // Banner
+    document.querySelector('.order-number-banner').textContent = `ORDER #${num}`;
+    // My order label
+    document.querySelector('.my-order-number').textContent = `#${num}`;
+    // Screen 2 order number
+    document.querySelector('.restaurant-order').innerHTML = `Your order: &nbsp;#${num}`;
+    // Rebuild grid around this number
+    buildGrid(num);
+  }
+
+  function buildGrid(num) {
+    const grid = document.querySelector('.order-grid');
+    grid.innerHTML = '';
+    const start = num - 5;
+    for (let i = start; i <= start + 8; i++) {
+      const tile = document.createElement('div');
+      const n = ((i - 1) % 100) + 1; // keep positive
+      if (i < num) {
+        tile.className = 'order-tile ready';
+        tile.textContent = i;
+      } else if (i === num) {
+        tile.className = 'order-tile preparing mine';
+        tile.textContent = num;
+      } else {
+        tile.className = 'order-tile preparing';
+        tile.textContent = i;
+      }
+      grid.appendChild(tile);
+    }
+  }
+
+  function applyPickupTime(etaStr, etaStrLower, nowDate) {
+    document.querySelector('.eta-time').textContent = etaStr;
+    document.querySelector('.my-order-time').textContent = `Pickup ${etaStr}`;
+
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const month = months[nowDate.getMonth()];
+    const day = nowDate.getDate();
+    const year = nowDate.getFullYear();
+    document.querySelector('.details-date').textContent = `${month} ${day}, ${year}, ${etaStrLower}`;
+  }
+
+  function initDateTime() {
+    const now = new Date();
+    let etaDate;
+
+    if (customPickupTime) {
+      // Parse HH:MM from time input
+      const [hh, mm] = customPickupTime.split(':').map(Number);
+      etaDate = new Date(now);
+      etaDate.setHours(hh, mm, 0, 0);
+    } else {
+      etaDate = new Date(now.getTime() + 10 * 60 * 1000);
+    }
+
+    const etaStr = formatPickupStr(etaDate);
+    const etaStrLower = formatPickupStr12Lower(etaDate);
+    applyPickupTime(etaStr, etaStrLower, now);
+  }
+
   function showDetails() {
     document.getElementById('screen-order').classList.add('hidden');
     document.getElementById('screen-details').classList.remove('hidden');
@@ -705,33 +909,37 @@
     document.getElementById('screen-order').classList.remove('hidden');
   }
 
-  function initDateTime() {
-    const now = new Date();
-
-    // ETA = now + 10 minutes
-    const eta = new Date(now.getTime() + 10 * 60 * 1000);
-    const etaHours = eta.getHours();
-    const etaMinutes = eta.getMinutes().toString().padStart(2, '0');
-    const ampm = etaHours >= 12 ? 'PM' : 'AM';
-    const eta12 = ((etaHours % 12) || 12).toString().padStart(2, '0');
-    const etaStr = `${eta12}:${etaMinutes}${ampm}`;
-
-    document.querySelector('.eta-time').textContent = etaStr;
-    document.querySelector('.my-order-time').textContent = `Pickup ${etaStr}`;
-
-    // Screen 2 pickup time
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const month = months[now.getMonth()];
-    const day = now.getDate();
-    const year = now.getFullYear();
-    const h = now.getHours();
-    const m = now.getMinutes().toString().padStart(2, '0');
-    const ap = h >= 12 ? 'pm' : 'am';
-    const h12 = (h % 12) || 12;
-    document.querySelector('.details-date').textContent = `${month} ${day}, ${year}, ${h12}:${m} ${ap}`;
+  function openSettings() {
+    document.getElementById('input-order-num').value = orderNum;
+    document.getElementById('input-pickup-time').value = customPickupTime || '';
+    document.getElementById('settings-modal').classList.remove('hidden');
   }
 
+  function closeSettings() {
+    document.getElementById('settings-modal').classList.add('hidden');
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('settings-modal')) closeSettings();
+  }
+
+  function saveSettings() {
+    const numVal = document.getElementById('input-order-num').value.trim();
+    const timeVal = document.getElementById('input-pickup-time').value.trim();
+
+    if (numVal && !isNaN(numVal)) {
+      orderNum = parseInt(numVal);
+      applyOrderNum(orderNum);
+    }
+
+    customPickupTime = timeVal || null;
+    initDateTime();
+    closeSettings();
+  }
+
+  // Init on load
   initDateTime();
+  applyOrderNum(orderNum);
 </script>
 
 </body>
