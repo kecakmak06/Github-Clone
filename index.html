@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GrubHub OSU - Order Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #141414;
+      --bg2: #1e1e1e;
+      --bg3: #2a2a2a;
+      --purple: #6B5FFF;
+      --purple-light: #8B7FFF;
+      --green: #6ECC9A;
+      --yellow: #F5A623;
+      --text: #ffffff;
+      --text-dim: #9a9a9a;
+      --border: #2e2e2e;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ===== SCREENS ===== */
+    .screen {
+      position: fixed;
+      inset: 0;
+      overflow-y: auto;
+      background: var(--bg);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease;
+    }
+
+    .screen.hidden {
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ===== SCREEN 1: ORDER STATUS ===== */
+    #screen-order .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 20px;
+      position: relative;
+    }
+    #screen-order .top-bar .back-btn {
+      position: absolute;
+      left: 20px;
+      color: var(--purple-light);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    #screen-order .top-bar h1 {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .order-number-banner {
+      background: var(--bg3);
+      text-align: center;
+      padding: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .order-status-section {
+      padding: 20px 20px 0;
+    }
+
+    .pickup-eta-label {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .eta-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .eta-time {
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .eta-status {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 5px;
+      background: var(--bg3);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 55%;
+      background: var(--green);
+      border-radius: 999px;
+    }
+
+    .progress-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+
+    .progress-dot.start {
+      margin-right: -7px;
+      z-index: 1;
+    }
+
+    .progress-dot.mid {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--green);
+      width: 14px;
+      height: 14px;
+      z-index: 2;
+    }
+
+    .progress-end-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--bg3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-left: 8px;
+      color: var(--text-dim);
+      font-size: 18px;
+    }
+
+    .progress-label {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    /* Pickup location */
+    .pickup-location {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 18px 20px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pickup-location .label {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .pickup-location .address {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .pickup-location a {
+      color: var(--purple-light);
+      font-size: 14px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    /* Buttons */
+    .btn-outline {
+      display: block;
+      margin: 20px 20px 0;
+      border: 2px solid var(--purple);
+      color: var(--purple-light);
+      background: transparent;
+      padding: 16px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      width: calc(100% - 40px);
+      transition: background 0.2s;
+    }
+    .btn-outline:active { background: rgba(107,95,255,0.1); }
+
+    .help-link {
+      display: block;
+      text-align: center;
+      margin: 18px 20px;
+      color: var(--purple-light);
+      font-size: 15px;
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    /* Cancel section */
+    .cancel-section {
+      padding: 20px;
+    }
+    .cancel-section h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .cancel-section p {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+    .cancel-section a {
+      color: var(--purple-light);
+      text-decoration: none;
+    }
+
+    /* Real-time line update bottom sheet */
+    .realtime-sheet {
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 0 20px 40px;
+      margin-top: 20px;
+    }
+
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 999px;
+      margin: 12px auto 20px;
+    }
+
+    .realtime-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .realtime-icon {
+      font-size: 24px;
+    }
+
+    .realtime-title {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .realtime-subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .my-order-label {
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .my-order-number {
+      color: var(--purple-light);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .my-order-time {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: right;
+      margin-bottom: 12px;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: var(--text-dim);
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.order-in { background: var(--bg3); border: 1px solid #555; }
+    .legend-dot.preparing { background: var(--yellow); }
+    .legend-dot.ready { background: var(--green); }
+
+    /* Order grid */
+    .order-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .order-tile {
+      border-radius: 10px;
+      padding: 16px 10px;
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 60px;
+    }
+
+    .order-tile.ready { background: var(--green); color: #1a1a1a; }
+    .order-tile.preparing { background: var(--yellow); color: #1a1a1a; }
+    .order-tile.mine { position: relative; }
+    .order-tile.mine::before {
+      content: "👤";
+      font-size: 14px;
+    }
+
+    /* ===== SCREEN 2: VIEW ORDER ===== */
+    #screen-details .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #screen-details .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--purple-light);
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    #screen-details .top-bar h1 {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    #screen-details .help-btn {
+      color: var(--purple-light);
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .restaurant-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .restaurant-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .restaurant-logo-text {
+      font-size: 9px;
+      font-weight: 800;
+      color: #333;
+      text-align: center;
+      line-height: 1.2;
+      padding: 4px;
+    }
+
+    .restaurant-info { flex: 1; }
+
+    .restaurant-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .restaurant-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+
+    .restaurant-order {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .chevron {
+      color: var(--text-dim);
+      font-size: 18px;
+    }
+
+    .details-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pickup-badge {
+      display: inline-block;
+      background: transparent;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .details-date {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .need-help-link {
+      color: var(--purple-light);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    .cancel-box {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cancel-box h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .cancel-box p {
+      font-size: 14px;
+      color: var(--text-dim);
+    }
+
+    .cancel-box a {
+      color: var(--purple-light);
+      text-decoration: none;
+    }
+
+    .order-info-section {
+      padding: 20px;
+    }
+
+    .order-info-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .order-item-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+
+    .order-item-qty {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 18px;
+    }
+
+    .order-item-details { flex: 1; }
+
+    .order-item-name {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .order-item-modifier {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+    }
+
+    .view-receipt {
+      text-align: right;
+      padding: 20px;
+    }
+
+    .view-receipt a {
+      color: var(--purple-light);
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== SCREEN 1: YOUR ORDER ===== -->
+<div class="screen" id="screen-order">
+
+  <div class="top-bar">
+    <span class="back-btn">&#8964;</span>
+    <h1>Your order</h1>
+  </div>
+
+  <div class="order-number-banner">ORDER #66</div>
+
+  <div class="order-status-section">
+    <p class="pickup-eta-label">Pickup ETA</p>
+    <div class="eta-row">
+      <span class="eta-time">06:36PM</span>
+      <span class="eta-status">Preparing Your Order</span>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-container">
+      <div class="progress-dot start"></div>
+      <div class="progress-track">
+        <div class="progress-fill"></div>
+        <div class="progress-dot mid"></div>
+      </div>
+      <div class="progress-end-circle">&#10003;</div>
+    </div>
+    <p class="progress-label">In the works</p>
+  </div>
+
+  <div class="pickup-location">
+    <div>
+      <p class="label">Campus pickup at</p>
+      <p class="address">160 W Woodruff Ave</p>
+    </div>
+    <a href="#">Get directions</a>
+  </div>
+
+  <button class="btn-outline" onclick="showDetails()">View order details</button>
+  <a href="#" class="help-link">Need help with your order?</a>
+
+  <div class="cancel-section">
+    <h3>Need to cancel?</h3>
+    <p>One or more of the tenders is non-refundable. <a href="#">Get help</a></p>
+  </div>
+
+  <!-- Real-time bottom sheet -->
+  <div class="realtime-sheet">
+    <div class="sheet-handle"></div>
+
+    <div class="realtime-header">
+      <span class="realtime-icon">📡</span>
+      <span class="realtime-title">Real-time Line Update</span>
+    </div>
+    <p class="realtime-subtitle">Currently 10 orders in line</p>
+
+    <div class="my-order-label">
+      Your order<br>
+      <span class="my-order-number">#66</span>
+    </div>
+    <p class="my-order-time">Pickup 06:36PM</p>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot order-in"></div> Order in
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot preparing"></div> Preparing
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot ready"></div> Ready
+      </div>
+    </div>
+
+    <div class="order-grid">
+      <div class="order-tile ready">61</div>
+      <div class="order-tile preparing">62</div>
+      <div class="order-tile preparing">63</div>
+      <div class="order-tile preparing">64</div>
+      <div class="order-tile preparing">65</div>
+      <div class="order-tile preparing mine">66</div>
+      <div class="order-tile preparing">67</div>
+      <div class="order-tile preparing">68</div>
+      <div class="order-tile preparing">69</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== SCREEN 2: VIEW ORDER DETAILS ===== -->
+<div class="screen hidden" id="screen-details">
+
+  <div class="top-bar">
+    <a class="back-btn" onclick="showOrder(); return false;" href="#">&#8249; Back</a>
+    <h1>View order</h1>
+    <span class="help-btn">Help</span>
+  </div>
+
+  <div class="restaurant-row">
+    <div class="restaurant-logo">
+      <div class="restaurant-logo-text">RADITION<br>AT SCOTT</div>
+    </div>
+    <div class="restaurant-info">
+      <p class="restaurant-name">Traditions at Scott - Mongolian Grill</p>
+      <p class="restaurant-meta">160 W Woodruff Ave • (614) 247-8271</p>
+      <p class="restaurant-order">Your order: &nbsp;#66</p>
+    </div>
+    <span class="chevron">&#8250;</span>
+  </div>
+
+  <div class="details-section">
+    <span class="pickup-badge">Pickup</span>
+    <p class="details-date">Sep 7, 2025, 6:16 pm</p>
+    <a href="#" class="need-help-link">Need help?</a>
+  </div>
+
+  <div class="cancel-box">
+    <h3>Need to cancel?</h3>
+    <p>One or more of the tenders is non-refundable. <a href="#">Get help</a></p>
+  </div>
+
+  <div class="order-info-section">
+    <h2 class="order-info-title">Order information</h2>
+
+    <div class="order-item-row">
+      <span class="order-item-qty">1</span>
+      <div class="order-item-details">
+        <p class="order-item-name">Build Your Own Stir-Fry</p>
+        <p class="order-item-modifier">• Lo Mein Noodles</p>
+        <p class="order-item-modifier">• No Choice</p>
+        <p class="order-item-modifier">• Sliced Mushrooms</p>
+        <p class="order-item-modifier">• Peppers</p>
+        <p class="order-item-modifier">• Garlic</p>
+        <p class="order-item-modifier">• Onion</p>
+        <p class="order-item-modifier">• Chicken</p>
+        <p class="order-item-modifier">• Teriyaki</p>
+        <p class="order-item-modifier">• Soy Sauce</p>
+        <p class="order-item-modifier">• No - Dine In</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="view-receipt">
+    <a href="#">View receipt</a>
+  </div>
+
+</div>
+
+<script>
+  function showDetails() {
+    document.getElementById('screen-order').classList.add('hidden');
+    document.getElementById('screen-details').classList.remove('hidden');
+    document.getElementById('screen-details').scrollTop = 0;
+  }
+
+  function showOrder() {
+    document.getElementById('screen-details').classList.add('hidden');
+    document.getElementById('screen-order').classList.remove('hidden');
+  }
+
+  function initDateTime() {
+    const now = new Date();
+
+    // ETA = now + 10 minutes
+    const eta = new Date(now.getTime() + 10 * 60 * 1000);
+    const etaHours = eta.getHours();
+    const etaMinutes = eta.getMinutes().toString().padStart(2, '0');
+    const ampm = etaHours >= 12 ? 'PM' : 'AM';
+    const eta12 = ((etaHours % 12) || 12).toString().padStart(2, '0');
+    const etaStr = `${eta12}:${etaMinutes}${ampm}`;
+
+    document.querySelector('.eta-time').textContent = etaStr;
+    document.querySelector('.my-order-time').textContent = `Pickup ${etaStr}`;
+
+    // Screen 2 pickup time
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const month = months[now.getMonth()];
+    const day = now.getDate();
+    const year = now.getFullYear();
+    const h = now.getHours();
+    const m = now.getMinutes().toString().padStart(2, '0');
+    const ap = h >= 12 ? 'pm' : 'am';
+    const h12 = (h % 12) || 12;
+    document.querySelector('.details-date').textContent = `${month} ${day}, ${year}, ${h12}:${m} ${ap}`;
+  }
+
+  initDateTime();
+</script>
+
+</body>
+</html>
